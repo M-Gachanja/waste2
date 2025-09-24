@@ -11,25 +11,25 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Configure axios to include credentials for session authentication
+  axios.defaults.withCredentials = true;
+  axios.defaults.xsrfCookieName = 'csrftoken';
+  axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      axios.defaults.headers.common['Authorization'] = `Token ${token}`;
-      // Verify token and get user data
-      verifyToken();
-    } else {
-      setLoading(false);
-    }
+    checkAuthStatus();
   }, []);
 
-  const verifyToken = async () => {
+  const checkAuthStatus = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/users/');
-      setUser(response.data[0]); // Assuming first user is current user
+      // Use the current user endpoint
+      const response = await axios.get('http://localhost:8000/api/auth/current/');
+      if (response.data && response.data.id) {
+        setUser(response.data);
+      }
     } catch (error) {
-      console.error('Token verification failed:', error);
-      localStorage.removeItem('token');
-      delete axios.defaults.headers.common['Authorization'];
+      console.error('Auth check failed:', error);
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -37,41 +37,54 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
+      // Use the login endpoint we created
       const response = await axios.post('http://localhost:8000/api/auth/login/', {
         username,
         password,
       });
-      
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      axios.defaults.headers.common['Authorization'] = `Token ${token}`;
-      setUser(user);
-      
-      return { success: true };
+
+      if (response.data.user) {
+        setUser(response.data.user);
+        return { success: true };
+      } else {
+        return { success: false, error: 'Login failed' };
+      }
     } catch (error) {
       return { 
         success: false, 
-        error: error.response?.data?.message || 'Login failed' 
+        error: error.response?.data?.error || 'Login failed. Please check your credentials.' 
       };
     }
   };
 
   const register = async (userData) => {
     try {
-      const response = await axios.post('http://localhost:8000/api/auth/register/', userData);
+      // Use the registration endpoint
+      const response = await axios.post('http://localhost:8000/api/auth/register/', {
+        username: userData.username,
+        password: userData.password,
+        email: userData.email,
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+      });
+      
       return { success: true, data: response.data };
     } catch (error) {
       return { 
         success: false, 
-        error: error.response?.data || 'Registration failed' 
+        error: error.response?.data?.error || 'Registration failed' 
       };
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    delete axios.defaults.headers.common['Authorization'];
-    setUser(null);
+  const logout = async () => {
+    try {
+      await axios.post('http://localhost:8000/api/auth/logout/');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+    }
   };
 
   const value = {
