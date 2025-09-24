@@ -1,0 +1,14 @@
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from . import views
+
+router = DefaultRouter()
+router.register(r'waste-types', views.WasteTypeViewSet)
+router.register(r'waste-entries', views.WasteEntryViewSet)
+router.register(r'users', views.UserViewSet)
+router.register(r'profiles', views.UserProfileViewSet)
+router.register(r'analytics', views.AnalyticsViewSet, basename='analytics')
+
+urlpatterns = [
+    path('', include(router.urls)),
+]
