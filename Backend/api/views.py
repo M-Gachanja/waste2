@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.db.models import Sum, Count
@@ -14,39 +14,38 @@ from .serializers import (UserSerializer, WasteTypeSerializer,
 class WasteTypeViewSet(viewsets.ModelViewSet):
     queryset = WasteType.objects.all()
     serializer_class = WasteTypeSerializer
+    permission_classes = [AllowAny]  # Public - anyone can view waste types
 
 class WasteEntryViewSet(viewsets.ModelViewSet):
+    queryset = WasteEntry.objects.all()  # This is required for basename
     serializer_class = WasteEntrySerializer
+    permission_classes = [IsAuthenticated]  # Private - requires login
     
     def get_queryset(self):
+        # Filter to only show entries for the current user
         return WasteEntry.objects.filter(user=self.request.user)
     
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
-# Add this to the UserViewSet class
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny]  # Make public for testing
 
-    @action(detail=False, methods=['get'])
-    def current(self, request):
-        if request.user.is_authenticated:
-            serializer = self.get_serializer(request.user)
-            return Response(serializer.data)
-        else:
-            return Response({'error': 'Not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
-        
 class UserProfileViewSet(viewsets.ModelViewSet):
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]  # Private
 
 class AnalyticsViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]  # Private
+    
     def list(self, request):
         user = request.user
         time_period = request.query_params.get('period', 'week')
         
+        # Calculate date range
         end_date = timezone.now().date()
         if time_period == 'week':
             start_date = end_date - timedelta(days=7)
@@ -55,17 +54,20 @@ class AnalyticsViewSet(viewsets.ViewSet):
         else:
             start_date = end_date - timedelta(days=7)
         
+        # Get waste entries for the period
         entries = WasteEntry.objects.filter(
             user=user, 
             date__range=[start_date, end_date]
         )
         
+        # Calculate statistics
         total_waste = sum(entry.converted_quantity_kg() for entry in entries)
         waste_by_type = entries.values('waste_type__name').annotate(
             total=Sum('quantity'),
             count=Count('id')
         )
         
+        # Calculate environmental impact
         co2_saved = sum(
             entry.converted_quantity_kg() * entry.waste_type.co2_impact 
             for entry in entries if entry.waste_type.recyclable
@@ -83,41 +85,73 @@ class AnalyticsViewSet(viewsets.ViewSet):
         
         return Response(data)
 
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
-    def register(self, request):
-        username = request.data.get('username')
-        password = request.data.get('password')
-        email = request.data.get('email')
-        
-        if User.objects.filter(username=username).exists():
-            return Response({'error': 'Username already exists'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        user = User.objects.create_user(username=username, password=password, email=email)
-        user.save()
-        
-        return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)
+# Authentication views
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_view(request):
+    username = request.data.get('username')
+    email = request.data.get('email')
+    password = request.data.get('password')
+    
+    if not username or not password:
+        return Response({
+            'error': 'Username and password are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if User.objects.filter(username=username).exists():
+        return Response({
+            'error': 'Username already exists'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user = User.objects.create_user(
+            username=username,
+            email=email or '',
+            password=password
+        )
+        return Response({
+            'message': 'User created successfully',
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response({
+            'error': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
 
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
-    def login(self, request):
-        username = request.data.get('username')
-        password = request.data.get('password')
-        
-        user = authenticate(request, username=username, password=password)
-        
-        if user is not None:
-            login(request, user)
-            return Response({
-                'message': 'Login successful',
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'email': user.email
-                }
-            })
-        else:
-            return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_view(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+    
+    if not username or not password:
+        return Response({
+            'error': 'Username and password are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    user = authenticate(username=username, password=password)
+    if user:
+        login(request, user)
+        return Response({
+            'message': 'Login successful',
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_200_OK)
+    else:
+        return Response({
+            'error': 'Invalid credentials'
+        }, status=status.HTTP_401_UNAUTHORIZED)
 
-    @action(detail=False, methods=['post'])
-    def logout(self, request):
-        logout(request)
-        return Response({'message': 'Logout successful'})
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    logout(request)
+    return Response({
+        'message': 'Logout successful'
+    }, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def current_user_view(request):
+    return Response({
+        'user': UserSerializer(request.user).data
+    }, status=status.HTTP_200_OK)

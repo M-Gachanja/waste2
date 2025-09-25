@@ -11,9 +11,8 @@ router.register(r'analytics', views.AnalyticsViewSet, basename='analytics')
 
 urlpatterns = [
     path('', include(router.urls)),
-    # Add authentication endpoints
-    path('auth/register/', views.UserViewSet.as_view({'post': 'create'}), name='register'),
-    path('auth/login/', views.AnalyticsViewSet.as_view({'post': 'login'}), name='login'),
-    path('auth/logout/', views.AnalyticsViewSet.as_view({'post': 'logout'}), name='logout'),
-    path('auth/current/', views.UserViewSet.as_view({'get': 'current'}), name='current-user'),
+    path('auth/register/', views.register_view, name='register'),
+    path('auth/login/', views.login_view, name='login'),
+    path('auth/logout/', views.logout_view, name='logout'),
+    path('auth/user/', views.current_user_view, name='current_user'),
 ]
