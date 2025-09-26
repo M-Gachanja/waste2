@@ -18,7 +18,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
-import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
 ChartJS.register(
   CategoryScale,
@@ -36,6 +36,7 @@ const Dashboard = () => {
     co2Saved: 0,
     weeklyData: [],
   });
+  const { getApi } = useAuth();
 
   useEffect(() => {
     fetchDashboardData();
@@ -43,8 +44,9 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const analyticsResponse = await axios.get('http://localhost:8000/api/analytics/?period=week');
-      const entriesResponse = await axios.get('http://localhost:8000/api/waste-entries/');
+      const api = getApi();
+      const analyticsResponse = await api.get('/analytics/?period=week');
+      const entriesResponse = await api.get('/waste-entries/');
       
       setStats({
         totalWaste: analyticsResponse.data.total_waste_kg || 0,
@@ -54,7 +56,6 @@ const Dashboard = () => {
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
-      // Set default values if API fails
       setStats({
         totalWaste: 0,
         totalEntries: 0,
@@ -173,4 +174,5 @@ const Dashboard = () => {
   );
 };
 
+// Add default export
 export default Dashboard;

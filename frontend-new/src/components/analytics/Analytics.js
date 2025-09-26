@@ -25,13 +25,14 @@ import {
   Cell,
   ResponsiveContainer,
 } from 'recharts';
-import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
 const Analytics = () => {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [period, setPeriod] = useState('week');
+  const { getApi } = useAuth();
 
   useEffect(() => {
     fetchAnalyticsData();
@@ -39,7 +40,8 @@ const Analytics = () => {
 
   const fetchAnalyticsData = async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/analytics/?period=${period}`);
+      const api = getApi();
+      const response = await api.get(`/analytics/?period=${period}`);
       setAnalyticsData(response.data);
     } catch (error) {
       console.error('Error fetching analytics data:', error);
@@ -171,4 +173,5 @@ const Analytics = () => {
   );
 };
 
+// Add default export
 export default Analytics;

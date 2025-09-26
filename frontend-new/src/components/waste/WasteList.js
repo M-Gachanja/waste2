@@ -14,11 +14,12 @@ import {
   Chip,
 } from '@mui/material';
 import { Delete as DeleteIcon } from '@mui/icons-material';
-import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 
 const WasteList = () => {
   const [wasteEntries, setWasteEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { getApi } = useAuth();
 
   useEffect(() => {
     fetchWasteEntries();
@@ -26,7 +27,8 @@ const WasteList = () => {
 
   const fetchWasteEntries = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/waste-entries/');
+      const api = getApi();
+      const response = await api.get('/waste-entries/');
       setWasteEntries(response.data);
     } catch (error) {
       console.error('Error fetching waste entries:', error);
@@ -37,7 +39,8 @@ const WasteList = () => {
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`http://localhost:8000/api/waste-entries/${id}/`);
+      const api = getApi();
+      await api.delete(`/waste-entries/${id}/`);
       setWasteEntries(wasteEntries.filter(entry => entry.id !== id));
     } catch (error) {
       console.error('Error deleting waste entry:', error);
@@ -118,4 +121,5 @@ const WasteList = () => {
   );
 };
 
+// Add default export
 export default WasteList;
