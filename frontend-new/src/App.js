@@ -4,6 +4,7 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/layout/Header';
+import ConnectionStatus from './components/layout/ConnectionStatus';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import Dashboard from './components/dashboard/Dashboard';
@@ -28,7 +29,12 @@ const theme = createTheme({
 });
 
 function ProtectedRoute({ children }) {
-  const { user } = useAuth();
+  const { user, backendStatus } = useAuth();
+  
+  if (backendStatus === 'disconnected') {
+    return children; // Allow access even if backend is down
+  }
+  
   return user ? children : <Navigate to="/login" />;
 }
 
@@ -39,6 +45,7 @@ function App() {
       <AuthProvider>
         <Router>
           <div className="App">
+            <ConnectionStatus />
             <Header />
             <Routes>
               <Route path="/login" element={<Login />} />
