@@ -26,7 +26,20 @@ class WasteEntryViewSet(viewsets.ModelViewSet):
         return WasteEntry.objects.filter(user=self.request.user)
     
     def perform_create(self, serializer):
+        # Automatically set the user to the current authenticated user
         serializer.save(user=self.request.user)
+    
+    def create(self, request, *args, **kwargs):
+        # Remove user from request data if it exists to avoid validation errors
+        data = request.data.copy()
+        if 'user' in data:
+            data.pop('user')
+        
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
