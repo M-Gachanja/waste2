@@ -18,7 +18,7 @@ import {
   RecyclingOutlined,
   TrendingUpOutlined,
   BarChartOutlined,
-  EcoOutlined,
+  NatureOutlined,
   CheckCircleOutlined,
   PublicOutlined,
   LocalFloristOutlined,
@@ -33,7 +33,7 @@ const Homepage = () => {
 
   const handleGetStarted = () => {
     if (user) {
-      navigate('/');
+      navigate('/dashboard');
     } else {
       navigate('/register');
     }
@@ -56,7 +56,7 @@ const Homepage = () => {
       description: 'See your real CO₂ savings and environmental contribution through recycling.',
     },
     {
-      icon: <EcoOutlined fontSize="large" color="primary" />,
+      icon: <NatureOutlined fontSize="large" color="primary" />,
       title: 'Sustainable Goals',
       description: 'Set and achieve waste reduction goals to minimize your environmental footprint.',
     },
@@ -163,7 +163,7 @@ const Homepage = () => {
                 <Button
                   variant="outlined"
                   size="large"
-                  onClick={() => navigate('/analytics')}
+                  onClick={() => user ? navigate('/analytics') : navigate('/login')}
                   sx={{
                     borderColor: 'white',
                     color: 'white',
@@ -175,7 +175,7 @@ const Homepage = () => {
                     },
                   }}
                 >
-                  View Demo
+                  {user ? 'View Analytics' : 'View Demo'}
                 </Button>
               </Box>
             </Grid>
@@ -304,8 +304,8 @@ const Homepage = () => {
       {/* Benefits Section */}
       <Box sx={{ py: 10, bgcolor: '#f8f9fa' }}>
         <Container maxWidth="lg">
-          <Grid container spacing={6} alignItems="center">
-            <Grid item xs={12} md={6}>
+          <Grid container spacing={6} sx={{ alignItems: 'center' }}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Typography variant="h3" fontWeight="bold" gutterBottom>
                 Your Journey to
                 <Box component="span" sx={{ color: 'primary.main', display: 'block' }}>
@@ -335,7 +335,7 @@ const Homepage = () => {
                 ))}
               </List>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <Box
                 sx={{
                   display: 'flex',

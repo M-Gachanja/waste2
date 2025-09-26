@@ -93,6 +93,8 @@ REST_FRAMEWORK = {
     ],
 }
 
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
 # Disable CSRF for API endpoints
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
