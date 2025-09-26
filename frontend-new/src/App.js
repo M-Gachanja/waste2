@@ -5,6 +5,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/layout/Header';
 import ConnectionStatus from './components/layout/ConnectionStatus';
+import Homepage from './components/Homepage';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import Dashboard from './components/dashboard/Dashboard';
@@ -38,6 +39,17 @@ function ProtectedRoute({ children }) {
   return user ? children : <Navigate to="/login" />;
 }
 
+function PublicRoute({ children }) {
+  const { user } = useAuth();
+  
+  // If user is logged in and tries to access public routes, redirect to dashboard
+  if (user && (window.location.pathname === '/login' || window.location.pathname === '/register')) {
+    return <Navigate to="/dashboard" />;
+  }
+  
+  return children;
+}
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -48,10 +60,31 @@ function App() {
             <ConnectionStatus />
             <Header />
             <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+              {/* Public Routes */}
               <Route 
                 path="/" 
+                element={<Homepage />} 
+              />
+              <Route 
+                path="/login" 
+                element={
+                  <PublicRoute>
+                    <Login />
+                  </PublicRoute>
+                } 
+              />
+              <Route 
+                path="/register" 
+                element={
+                  <PublicRoute>
+                    <Register />
+                  </PublicRoute>
+                } 
+              />
+              
+              {/* Protected Routes */}
+              <Route 
+                path="/dashboard" 
                 element={
                   <ProtectedRoute>
                     <Dashboard />
@@ -82,6 +115,9 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              
+              {/* Redirect old dashboard route */}
+              <Route path="/old-dashboard" element={<Navigate to="/dashboard" />} />
             </Routes>
           </div>
         </Router>
