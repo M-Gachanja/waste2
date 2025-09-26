@@ -56,23 +56,45 @@ const WasteLog = () => {
   const handleDateChange = (date) => {
     setWasteEntry(prev => ({
       ...prev,
-      date: date
+      date: date || new Date()
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Clear previous messages
+    setMessage({ type: '', text: '' });
+    
+    // Validate form data
+    if (!wasteEntry.waste_type) {
+      setMessage({ type: 'error', text: 'Please select a waste type.' });
+      return;
+    }
+    
+    if (!wasteEntry.quantity || parseFloat(wasteEntry.quantity) <= 0) {
+      setMessage({ type: 'error', text: 'Please enter a valid quantity.' });
+      return;
+    }
+    
     try {
       const api = getApi();
       const formattedData = {
-        ...wasteEntry,
         waste_type: parseInt(wasteEntry.waste_type),
+        quantity: parseFloat(wasteEntry.quantity),
+        unit: wasteEntry.unit,
+        description: wasteEntry.description,
         date: wasteEntry.date.toISOString().split('T')[0]
       };
 
-      await api.post('/waste-entries/', formattedData);
+      console.log('Submitting waste entry:', formattedData);
+
+      const response = await api.post('/waste-entries/', formattedData);
+      console.log('Waste entry created:', response.data);
       
       setMessage({ type: 'success', text: 'Waste entry logged successfully!' });
+      
+      // Reset form
       setWasteEntry({
         waste_type: '',
         quantity: '',
@@ -82,11 +104,32 @@ const WasteLog = () => {
       });
     } catch (error) {
       console.error('Error submitting waste entry:', error);
+      console.error('Error response:', error.response?.data);
       
       if (error.response?.status === 403) {
         setMessage({ type: 'error', text: 'Permission denied. Please make sure you are logged in.' });
       } else if (error.response?.status === 401) {
         setMessage({ type: 'error', text: 'Session expired. Please log in again.' });
+      } else if (error.response?.status === 400) {
+        // Handle validation errors
+        const errorData = error.response.data;
+        let errorMessage = 'Validation error: ';
+        
+        if (typeof errorData === 'object') {
+          const errorMessages = [];
+          for (const [field, messages] of Object.entries(errorData)) {
+            if (Array.isArray(messages)) {
+              errorMessages.push(`${field}: ${messages.join(', ')}`);
+            } else {
+              errorMessages.push(`${field}: ${messages}`);
+            }
+          }
+          errorMessage += errorMessages.join('; ');
+        } else {
+          errorMessage += errorData;
+        }
+        
+        setMessage({ type: 'error', text: errorMessage });
       } else {
         setMessage({ type: 'error', text: 'Error logging waste entry. Please try again.' });
       }
@@ -108,7 +151,7 @@ const WasteLog = () => {
 
         <Box component="form" onSubmit={handleSubmit}>
           <Grid container spacing={3}>
-            {/* <Grid item xs={12} sm={6}>
+            <Grid item xs={12} sm={6}>
               <FormControl fullWidth required>
                 <InputLabel>Waste Type</InputLabel>
                 <Select
@@ -124,7 +167,7 @@ const WasteLog = () => {
                   ))}
                 </Select>
               </FormControl>
-            </Grid> */}
+            </Grid>
             
             <Grid item xs={12} sm={6}>
               <TextField
@@ -162,7 +205,9 @@ const WasteLog = () => {
                   label="Date"
                   value={wasteEntry.date}
                   onChange={handleDateChange}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
+                  renderInput={(params) => (
+                    <TextField {...params} fullWidth required />
+                  )}
                 />
               </LocalizationProvider>
             </Grid>
@@ -198,5 +243,4 @@ const WasteLog = () => {
   );
 };
 
-// Add this default export
 export default WasteLog;

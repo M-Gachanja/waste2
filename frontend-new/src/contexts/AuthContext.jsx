@@ -116,6 +116,34 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Add this getApi function
+  const getApi = () => {
+    const api = axios.create({
+      baseURL: API_BASE_URL,
+      withCredentials: true,
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    // Add request interceptor to include CSRF token
+    api.interceptors.request.use(async (config) => {
+      // Get CSRF token from cookie
+      const csrfToken = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+      
+      if (csrfToken) {
+        config.headers['X-CSRFToken'] = csrfToken;
+      }
+      
+      return config;
+    });
+
+    return api;
+  };
+
   const login = async (username, password) => {
     console.log('Attempting login for user:', username);
     
@@ -269,6 +297,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     backendStatus,
     testBackendConnection,
+    getApi, // Add this to the context value
   };
 
   return (
