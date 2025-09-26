@@ -17,6 +17,7 @@ const Login = () => {
     password: '',
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -30,14 +31,18 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
     
     const result = await login(formData.username, formData.password);
     
     if (result.success) {
-      navigate('/');
+      // Redirect to dashboard after successful login
+      navigate('/dashboard');
     } else {
       setError(result.error);
     }
+    
+    setLoading(false);
   };
 
   return (
@@ -45,6 +50,10 @@ const Login = () => {
       <Paper elevation={3} sx={{ p: 4 }}>
         <Typography variant="h4" gutterBottom align="center">
           Login to WasteWise
+        </Typography>
+        
+        <Typography variant="body1" align="center" color="textSecondary" sx={{ mb: 3 }}>
+          Access your waste tracking dashboard
         </Typography>
         
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -58,6 +67,7 @@ const Login = () => {
             onChange={handleChange}
             margin="normal"
             required
+            disabled={loading}
           />
           <TextField
             fullWidth
@@ -68,6 +78,7 @@ const Login = () => {
             onChange={handleChange}
             margin="normal"
             required
+            disabled={loading}
           />
           <Button
             type="submit"
@@ -75,15 +86,26 @@ const Login = () => {
             variant="contained"
             sx={{ mt: 3, mb: 2 }}
             size="large"
+            disabled={loading}
           >
-            Login
+            {loading ? 'Signing in...' : 'Login'}
           </Button>
           <Button
             fullWidth
             variant="text"
             onClick={() => navigate('/register')}
+            disabled={loading}
           >
             Don't have an account? Register here
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            onClick={() => navigate('/')}
+            disabled={loading}
+            sx={{ mt: 1 }}
+          >
+            Back to Home
           </Button>
         </Box>
       </Paper>

@@ -21,6 +21,7 @@ const Register = () => {
     last_name: '',
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -34,19 +35,28 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
+      setLoading(false);
       return;
     }
 
     const result = await register(formData);
     
     if (result.success) {
-      navigate('/login');
+      // Redirect to login page after successful registration
+      navigate('/login', { 
+        state: { 
+          message: 'Registration successful! Please log in with your credentials.' 
+        }
+      });
     } else {
       setError(result.error || 'Registration failed');
     }
+    
+    setLoading(false);
   };
 
   return (
@@ -54,6 +64,10 @@ const Register = () => {
       <Paper elevation={3} sx={{ p: 4 }}>
         <Typography variant="h4" gutterBottom align="center">
           Join WasteWise
+        </Typography>
+        
+        <Typography variant="body1" align="center" color="textSecondary" sx={{ mb: 3 }}>
+          Start your journey towards sustainable waste management
         </Typography>
         
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -67,6 +81,7 @@ const Register = () => {
             onChange={handleChange}
             margin="normal"
             required
+            disabled={loading}
           />
           <TextField
             fullWidth
@@ -77,6 +92,7 @@ const Register = () => {
             onChange={handleChange}
             margin="normal"
             required
+            disabled={loading}
           />
           <TextField
             fullWidth
@@ -85,6 +101,7 @@ const Register = () => {
             value={formData.first_name}
             onChange={handleChange}
             margin="normal"
+            disabled={loading}
           />
           <TextField
             fullWidth
@@ -93,6 +110,7 @@ const Register = () => {
             value={formData.last_name}
             onChange={handleChange}
             margin="normal"
+            disabled={loading}
           />
           <TextField
             fullWidth
@@ -103,6 +121,7 @@ const Register = () => {
             onChange={handleChange}
             margin="normal"
             required
+            disabled={loading}
           />
           <TextField
             fullWidth
@@ -113,6 +132,7 @@ const Register = () => {
             onChange={handleChange}
             margin="normal"
             required
+            disabled={loading}
           />
           <Button
             type="submit"
@@ -120,15 +140,26 @@ const Register = () => {
             variant="contained"
             sx={{ mt: 3, mb: 2 }}
             size="large"
+            disabled={loading}
           >
-            Register
+            {loading ? 'Creating Account...' : 'Register'}
           </Button>
           <Button
             fullWidth
             variant="text"
             onClick={() => navigate('/login')}
+            disabled={loading}
           >
             Already have an account? Login here
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            onClick={() => navigate('/')}
+            disabled={loading}
+            sx={{ mt: 1 }}
+          >
+            Back to Home
           </Button>
         </Box>
       </Paper>
