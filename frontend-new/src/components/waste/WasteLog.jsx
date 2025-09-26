@@ -1,175 +1,228 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Container,
-  Paper,
-  Typography,
-  TextField,
-  Button,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Grid,
-  Alert,
-  Box,
-} from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 
-const WasteLog = () => {
-  const [wasteEntry, setWasteEntry] = useState({
-    waste_type: '',
-    quantity: '',
-    unit: 'g',
-    description: '',
-    date: new Date(),
-  });
-  
-  const [wasteTypes, setWasteTypes] = useState([]);
-  const [message, setMessage] = useState({ type: '', text: '' });
+const AuthContext = createContext();
 
+export const useAuth = () => {
+  return useContext(AuthContext);
+};
+
+const API_BASE_URL = 'http://localhost:8000/api';
+
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [backendStatus, setBackendStatus] = useState('checking');
+
+  // Add token to all requests
   useEffect(() => {
-    fetchWasteTypes();
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete api.defaults.headers.common['Authorization'];
+    }
+
+    // Add response interceptor to handle token refresh
+    api.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (error.response?.status === 401) {
+          // Token expired, try to refresh
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (refreshToken) {
+            try {
+              const response = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
+                refresh: refreshToken
+              });
+              
+              const newAccessToken = response.data.access;
+              localStorage.setItem('accessToken', newAccessToken);
+              api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+              
+              // Retry the original request
+              error.config.headers['Authorization'] = `Bearer ${newAccessToken}`;
+              return api.request(error.config);
+            } catch (refreshError) {
+              // Refresh failed, logout user
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('refreshToken');
+              delete api.defaults.headers.common['Authorization'];
+              setUser(null);
+            }
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    initializeApp();
   }, []);
 
-  const fetchWasteTypes = async () => {
+  const testBackendConnection = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/waste-types/');
-      setWasteTypes(response.data);
+      await api.get('/waste-types/');
+      setBackendStatus('connected');
+      return true;
     } catch (error) {
-      console.error('Error fetching waste types:', error);
+      setBackendStatus('disconnected');
+      return false;
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setWasteEntry(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const initializeApp = async () => {
+    const isBackendConnected = await testBackendConnection();
+    
+    if (isBackendConnected) {
+      await checkAuthStatus();
+    } else {
+      console.error('Backend server is not running.');
+      setLoading(false);
+    }
   };
 
-  const handleDateChange = (date) => {
-    setWasteEntry(prev => ({
-      ...prev,
-      date: date
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const checkAuthStatus = async () => {
     try {
-      const formattedData = {
-        ...wasteEntry,
-        waste_type: parseInt(wasteEntry.waste_type),
-        date: wasteEntry.date.toISOString().split('T')[0]
+      const response = await api.get('/auth/current/');
+      if (response.data && response.data.id) {
+        setUser(response.data);
+      }
+    } catch (error) {
+      console.log('User not authenticated or token invalid');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = async (username, password) => {
+    if (!await testBackendConnection()) {
+      return { 
+        success: false, 
+        error: 'Backend server is not running.' 
       };
-
-      await axios.post('http://localhost:8000/api/waste-entries/', formattedData);
-      
-      setMessage({ type: 'success', text: 'Waste entry logged successfully!' });
-      setWasteEntry({
-        waste_type: '',
-        quantity: '',
-        unit: 'g',
-        description: '',
-        date: new Date(),
-      });
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Error logging waste entry. Please try again.' });
-      console.error('Error submitting waste entry:', error);
     }
+
+    try {
+      // Use axios directly for login (not the api instance)
+      const response = await axios.post(`${API_BASE_URL}/auth/login/`, {
+        username,
+        password,
+      });
+
+      if (response.data.tokens) {
+        const { access, refresh } = response.data.tokens;
+        
+        // Store tokens
+        localStorage.setItem('accessToken', access);
+        localStorage.setItem('refreshToken', refresh);
+        
+        // Update api instance headers
+        api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+        
+        setUser(response.data.user);
+        return { success: true };
+      }
+    } catch (error) {
+      if (error.code === 'ERR_NETWORK') {
+        return { 
+          success: false, 
+          error: 'Cannot connect to server.' 
+        };
+      }
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Login failed.' 
+      };
+    }
+
+    return { success: false, error: 'Login failed' };
+  };
+
+  const register = async (userData) => {
+    if (!await testBackendConnection()) {
+      return { 
+        success: false, 
+        error: 'Backend server is not running.' 
+      };
+    }
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/auth/register/`, {
+        username: userData.username,
+        password: userData.password,
+        email: userData.email,
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+      });
+      
+      if (response.data.tokens) {
+        const { access, refresh } = response.data.tokens;
+        
+        // Store tokens
+        localStorage.setItem('accessToken', access);
+        localStorage.setItem('refreshToken', refresh);
+        
+        // Update api instance headers
+        api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+        
+        setUser(response.data.user);
+        return { success: true, data: response.data };
+      }
+    } catch (error) {
+      if (error.code === 'ERR_NETWORK') {
+        return { 
+          success: false, 
+          error: 'Cannot connect to server.' 
+        };
+      }
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Registration failed.' 
+      };
+    }
+
+    return { success: false, error: 'Registration failed' };
+  };
+
+  const logout = async () => {
+    try {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) {
+        await api.post('/auth/logout/', { refresh: refreshToken });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      delete api.defaults.headers.common['Authorization'];
+      setUser(null);
+    }
+  };
+
+  const getApi = () => api;
+
+  const value = {
+    user,
+    login,
+    register,
+    logout,
+    loading,
+    backendStatus,
+    getApi,
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Paper elevation={3} sx={{ p: 4 }}>
-        <Typography variant="h4" gutterBottom color="primary">
-          Log Waste
-        </Typography>
-        
-        {message.text && (
-          <Alert severity={message.type} sx={{ mb: 2 }}>
-            {message.text}
-          </Alert>
-        )}
-
-        <Box component="form" onSubmit={handleSubmit}>
-          <Grid container spacing={3}>
-            
-            
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Quantity"
-                name="quantity"
-                type="number"
-                value={wasteEntry.quantity}
-                onChange={handleChange}
-                required
-                inputProps={{ min: 0, step: 0.1 }}
-              />
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Unit</InputLabel>
-                <Select
-                  name="unit"
-                  value={wasteEntry.unit}
-                  onChange={handleChange}
-                  label="Unit"
-                >
-                  <MenuItem value="g">Grams (g)</MenuItem>
-                  <MenuItem value="kg">Kilograms (kg)</MenuItem>
-                  <MenuItem value="items">Items</MenuItem>
-                  <MenuItem value="l">Liters (l)</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} sm={6}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <DatePicker
-                  label="Date"
-                  value={wasteEntry.date}
-                  onChange={handleDateChange}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
-                />
-              </LocalizationProvider>
-            </Grid>
-            
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description (Optional)"
-                name="description"
-                multiline
-                rows={3}
-                value={wasteEntry.description}
-                onChange={handleChange}
-                placeholder="Additional details about this waste entry..."
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                size="large"
-                sx={{ mt: 2 }}
-              >
-                Log Waste Entry
-              </Button>
-            </Grid>
-          </Grid>
-        </Box>
-      </Paper>
-    </Container>
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
   );
 };
-
-export default WasteLog;
