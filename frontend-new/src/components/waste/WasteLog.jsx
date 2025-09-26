@@ -98,23 +98,7 @@ const WasteLog = () => {
 
         <Box component="form" onSubmit={handleSubmit}>
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Waste Type</InputLabel>
-                <Select
-                  name="waste_type"
-                  value={wasteEntry.waste_type}
-                  onChange={handleChange}
-                  label="Waste Type"
-                >
-                  {wasteTypes.map((type) => (
-                    <MenuItem key={type.id} value={type.id}>
-                      {type.name} {type.recyclable && '♻️'}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+            
             
             <Grid item xs={12} sm={6}>
               <TextField
