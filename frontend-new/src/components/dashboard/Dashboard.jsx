@@ -47,13 +47,20 @@ const Dashboard = () => {
       const entriesResponse = await axios.get('http://localhost:8000/api/waste-entries/');
       
       setStats({
-        totalWaste: analyticsResponse.data.total_waste_kg,
+        totalWaste: analyticsResponse.data.total_waste_kg || 0,
         totalEntries: entriesResponse.data.length,
-        co2Saved: analyticsResponse.data.co2_saved_kg,
-        weeklyData: analyticsResponse.data.waste_by_type,
+        co2Saved: analyticsResponse.data.co2_saved_kg || 0,
+        weeklyData: analyticsResponse.data.waste_by_type || [],
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      // Set default values if API fails
+      setStats({
+        totalWaste: 0,
+        totalEntries: 0,
+        co2Saved: 0,
+        weeklyData: [],
+      });
     }
   };
 
@@ -131,11 +138,13 @@ const Dashboard = () => {
         </Grid>
 
         {/* Chart */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Bar data={chartData} options={chartOptions} />
-          </Paper>
-        </Grid>
+        {stats.weeklyData.length > 0 && (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3 }}>
+              <Bar data={chartData} options={chartOptions} />
+            </Paper>
+          </Grid>
+        )}
 
         {/* Quick Actions */}
         <Grid item xs={12}>

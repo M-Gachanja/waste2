@@ -22,13 +22,12 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
-      // Use the current user endpoint
       const response = await axios.get('http://localhost:8000/api/auth/current/');
       if (response.data && response.data.id) {
         setUser(response.data);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.log('User not authenticated');
       setUser(null);
     } finally {
       setLoading(false);
@@ -37,7 +36,6 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      // Use the login endpoint we created
       const response = await axios.post('http://localhost:8000/api/auth/login/', {
         username,
         password,
@@ -59,7 +57,6 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      // Use the registration endpoint
       const response = await axios.post('http://localhost:8000/api/auth/register/', {
         username: userData.username,
         password: userData.password,
@@ -72,7 +69,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return { 
         success: false, 
-        error: error.response?.data?.error || 'Registration failed' 
+        error: error.response?.data?.error || error.response?.data?.username?.[0] || 'Registration failed' 
       };
     }
   };

@@ -7,12 +7,14 @@ router.register(r'waste-types', views.WasteTypeViewSet)
 router.register(r'waste-entries', views.WasteEntryViewSet)
 router.register(r'users', views.UserViewSet)
 router.register(r'profiles', views.UserProfileViewSet)
-router.register(r'analytics', views.AnalyticsViewSet, basename='analytics')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('auth/register/', views.register_view, name='register'),
-    path('auth/login/', views.login_view, name='login'),
-    path('auth/logout/', views.logout_view, name='logout'),
-    path('auth/user/', views.current_user_view, name='current_user'),
+    # Authentication endpoints
+    path('auth/register/', views.UserViewSet.as_view({'post': 'create'}), name='register'),
+    path('auth/login/', views.login_view.as_view(), name='login'),
+    path('auth/logout/', views.logout_view.as_view(), name='logout'),
+    path('auth/current/', views.UserViewSet.as_view({'get': 'current'}), name='current-user'),
+    # Analytics endpoint
+    path('analytics/', views.AnalyticsView.as_view(), name='analytics'),
 ]
