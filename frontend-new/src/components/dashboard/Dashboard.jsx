@@ -136,13 +136,6 @@ const Dashboard = () => {
       color: '#FF9800',
       action: () => navigate('/waste-list'),
     },
-    {
-      title: 'Set Goals',
-      description: 'Update waste goals',
-      icon: <StarBorderOutlined sx={{ fontSize: '2rem' }} />,
-      color: '#9C27B0',
-      action: () => alert('Goal setting feature coming soon!'),
-    },
   ];
 
   const chartData = stats.weeklyData && stats.weeklyData.length > 0 ? {
